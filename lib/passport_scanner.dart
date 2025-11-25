@@ -140,13 +140,13 @@ class BarcodeFocusAreaPainter extends CustomPainter {
     final clippedRect = getClippedRect(size);
     // Draw a semi-transparent overlay outside of the scan area
     canvas.drawPath(clippedRect, Paint()..color = Colors.black38);
-    canvas.drawLine(
-      Offset(size.width / 2 - scanArea.width / 2, size.height / 2),
-      Offset(size.width / 2 + scanArea.width / 2, size.height / 2),
-      Paint()
-        ..color = Colors.red
-        ..strokeWidth = 2,
-    );
+    // canvas.drawLine(
+    //   Offset(size.width / 2 - scanArea.width / 2, size.height / 2),
+    //   Offset(size.width / 2 + scanArea.width / 2, size.height / 2),
+    //   Paint()
+    //     ..color = Colors.red
+    //     ..strokeWidth = 2,
+    // );
     // Add border around the scan area
     canvas.drawPath(
       getInnerRect(size),
@@ -180,7 +180,7 @@ class BarcodeFocusAreaPainter extends CustomPainter {
 
   Path getClippedRect(Size size) {
     final fullRect = Path()
-      ..addRect(Rect.fromLTWH(0, 100, size.width, size.height));
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
     final innerRect = getInnerRect(size);
     // Substract innerRect from fullRect
     return Path.combine(PathOperation.difference, fullRect, innerRect);
