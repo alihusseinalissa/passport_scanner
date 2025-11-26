@@ -1,4 +1,9 @@
-## 0.2.0
+## 0.3.0
+
+* Save the scanned image file in the cache, and return the path of the saved image
+* Added a button to toggle flash
+
+## 0.2.0 (RETRACTED)
 
 * Enhance the UI.
 * Return the path of the scanned image.
