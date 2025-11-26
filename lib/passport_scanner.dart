@@ -11,6 +11,7 @@ import 'package:image/image.dart' as imglib;
 class PassportScannerWidget extends StatefulWidget {
   final Function(MRZResult result, String? imagePath) onScanned;
   final Function(List<String> scannedLines)? onParsingFailed;
+  final Function()? onNoMrzFound;
   final int precision;
   final bool showFlashButton;
 
@@ -18,6 +19,7 @@ class PassportScannerWidget extends StatefulWidget {
     super.key,
     required this.onScanned,
     this.onParsingFailed,
+    this.onNoMrzFound,
     this.precision = 3,
     this.showFlashButton = false,
   });
@@ -116,7 +118,9 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
         inputImage,
       );
 
-      if (recognizedText.blocks.isEmpty) return;
+      if (recognizedText.blocks.isEmpty) {
+        widget.onNoMrzFound?.call();
+      };
 
       final block = recognizedText.blocks.last;
       if (block.lines.length != 2) return;

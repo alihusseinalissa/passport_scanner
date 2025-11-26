@@ -1,3 +1,7 @@
+## 0.3.1
+
+* Added onNoMrzFound
+
 ## 0.3.0
 
 * Save the scanned image file in the cache, and return the path of the saved image
