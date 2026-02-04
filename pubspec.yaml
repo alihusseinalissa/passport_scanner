@@ -1,6 +1,6 @@
 name: passport_scanner
 description: "Scan any passport to extract its information"
-version: 0.3.2
+version: 0.3.3
 homepage: https://github.com/alihusseinalissa/passport_scanner
 
 environment:

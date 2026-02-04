@@ -1,3 +1,7 @@
+## 0.3.3
+
+* Fixed image rotation for iOS
+
 ## 0.3.2
 
 * Bug fix
