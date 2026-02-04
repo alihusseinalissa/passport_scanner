@@ -8,7 +8,7 @@ extension MLKitUtils on AnalysisImage {
         return InputImage.fromBytes(
           bytes: image.bytes,
           metadata: InputImageMetadata(
-            rotation: inputImageRotation,
+            rotation: inputImageRotationForAndroid,
             format: InputImageFormat.nv21,
             size: image.size,
             bytesPerRow: image.planes.first.bytesPerRow,
@@ -18,7 +18,7 @@ extension MLKitUtils on AnalysisImage {
       bgra8888: (image) {
         final inputImageData = InputImageMetadata(
           size: size,
-          rotation: inputImageRotation,
+          rotation: inputImageRotationForIOS,
           format: inputImageFormat,
           bytesPerRow: image.planes.first.bytesPerRow,
         );
@@ -31,8 +31,21 @@ extension MLKitUtils on AnalysisImage {
     )!;
   }
 
-  InputImageRotation get inputImageRotation =>
+  InputImageRotation get inputImageRotationForAndroid =>
       InputImageRotation.values.byName(rotation.name);
+
+  InputImageRotation get inputImageRotationForIOS {
+    switch (rotation) {
+      case InputAnalysisImageRotation.rotation0deg:
+        return InputImageRotation.rotation90deg;
+      case InputAnalysisImageRotation.rotation90deg:
+        return InputImageRotation.rotation180deg;
+      case InputAnalysisImageRotation.rotation180deg:
+        return InputImageRotation.rotation270deg;
+      case InputAnalysisImageRotation.rotation270deg:
+        return InputImageRotation.rotation0deg;
+    }
+  }
 
   InputImageFormat get inputImageFormat {
     switch (format) {
