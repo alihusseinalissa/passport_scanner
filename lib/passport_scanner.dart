@@ -141,7 +141,7 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
           if (results[result]! < widget.precision) {
             results[result] = results[result]! + 1;
             debugPrint(
-              "MRZ SCANNED SUCCESSFULLY, BUT NEED MORE PRECISION: ${results[result]} / $widget.precision",
+              "MRZ SCANNED SUCCESSFULLY, BUT NEED MORE PRECISION: ${results[result]} / ${widget.precision}",
             );
           } else {
             debugPrint("MRZ SCANNED SUCCESSFULLY");
