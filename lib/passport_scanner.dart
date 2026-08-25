@@ -6,6 +6,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:mrz_parser/mrz_parser.dart';
 import 'package:path_provider/path_provider.dart';
 import 'ml_kit_utils.dart';
+import 'src/mrz_postprocess.dart';
 import 'package:image/image.dart' as imglib;
 
 class PassportScannerWidget extends StatefulWidget {
@@ -118,22 +119,14 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
         inputImage,
       );
 
-      if (recognizedText.blocks.isEmpty) {
+      final mrz = extractMrzLines(recognizedText)
+          .map((line) => line.replaceAll('«', '<'))
+          .toList();
+
+      if (mrz.isEmpty) {
         widget.onNoMrzFound?.call();
         return;
-      };
-
-      final block = recognizedText.blocks.last;
-      if (block.lines.length != 2) return;
-
-      final scannedLine1 = block.lines[0].text
-          .replaceAll(' ', '')
-          .replaceAll('«', '<');
-      final scannedLine2 = block.lines[1].text
-          .replaceAll(' ', '')
-          .replaceAll('«', '<');
-
-      final mrz = [scannedLine1, scannedLine2];
+      }
 
       try {
         final result = MRZParser.parse(mrz);
