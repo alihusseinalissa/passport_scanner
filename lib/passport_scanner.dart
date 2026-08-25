@@ -119,12 +119,14 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
         inputImage,
       );
 
-      final mrz = extractMrzLines(recognizedText).map(cleanup).toList();
+      final lines = extractMrzLines(recognizedText).map(cleanup).toList();
 
-      if (mrz.isEmpty) {
+      if (lines.isEmpty) {
         widget.onNoMrzFound?.call();
         return;
       }
+
+      final mrz = normalizeTd3(lines);
 
       try {
         final result = MRZParser.parse(mrz);

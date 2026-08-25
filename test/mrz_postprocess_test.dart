@@ -122,4 +122,67 @@ void main() {
       expect(cleanup(specimenLine2), specimenLine2);
     });
   });
+
+  group('normalize', () {
+    test('fixes O→0 and other look-alikes in dates and check digits', () {
+      // Birth date 7408122 → 74O8I22, expiry 1204159 → I2O4IS9, final 10 → IO.
+      final corrupted = specimenLine2
+          .replaceRange(13, 20, '74O8I22')
+          .replaceRange(21, 28, 'I2O4IS9')
+          .replaceRange(42, 44, 'IO');
+      expect(normalize(corrupted, td3Line2), specimenLine2);
+    });
+
+    test('fixes 0→O and other look-alikes in names and country', () {
+      // UTO → UT0, ERIKSSON → ER1K550N, MARIA → MAR1A.
+      final corrupted = specimenLine1
+          .replaceRange(2, 5, 'UT0')
+          .replaceRange(5, 13, 'ER1K550N')
+          .replaceRange(20, 25, 'MAR1A');
+      expect(normalize(corrupted, td3Line1), specimenLine1);
+    });
+
+    test('fixes digits in nationality and sex on line 2', () {
+      final corrupted = specimenLine2.replaceRange(10, 13, 'UT0');
+      expect(normalize(corrupted, td3Line2), specimenLine2);
+    });
+
+    test('leaves mixed fields untouched', () {
+      // Document number L898902C3 → L8989O2C3 and personal number
+      // ZE184226B → ZEI84226B must survive for stage 4 to arbitrate.
+      final corrupted = specimenLine2
+          .replaceRange(0, 9, 'L8989O2C3')
+          .replaceRange(28, 37, 'ZEI84226B');
+      expect(normalize(corrupted, td3Line2), corrupted);
+    });
+
+    test('never touches the < filler', () {
+      expect(normalize(specimenLine1, td3Line1), specimenLine1);
+      expect(normalize(specimenLine2, td3Line2), specimenLine2);
+    });
+
+    test('tolerates lines shorter than the field map', () {
+      final short = 'P<UT0ER1KSS0N';
+      expect(normalize(short, td3Line1), 'P<UTOERIKSSON');
+    });
+  });
+
+  group('normalizeTd3', () {
+    test('applies both field tables to a 44-character pair', () {
+      final l1 = specimenLine1.replaceRange(2, 5, 'UT0');
+      final l2 = specimenLine2.replaceRange(13, 19, '74O812');
+      expect(normalizeTd3([l1, l2]), [specimenLine1, specimenLine2]);
+    });
+
+    test('leaves lines that are not 44 characters unchanged', () {
+      final short = specimenLine2.replaceRange(13, 19, '74O812').substring(1);
+      final l1 = specimenLine1.replaceRange(2, 5, 'UT0');
+      expect(normalizeTd3([l1, short]), [specimenLine1, short]);
+    });
+
+    test('passes through anything that is not a two-line MRZ', () {
+      expect(normalizeTd3(const []), isEmpty);
+      expect(normalizeTd3([specimenLine1]), [specimenLine1]);
+    });
+  });
 }
