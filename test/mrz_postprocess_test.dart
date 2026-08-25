@@ -103,4 +103,23 @@ void main() {
       expect(extractMrzLines(text), [specimenLine1, specimenLine2]);
     });
   });
+
+  group('cleanup', () {
+    test('maps « to <', () {
+      final withGuillemet = specimenLine2.replaceRange(37, 42, '«««««');
+      expect(cleanup(withGuillemet), specimenLine2);
+    });
+
+    test('strips whitespace and uppercases', () {
+      expect(
+        cleanup('p<uto eriksson<<anna<maria\t<<<<<<<<<<<<<<<<<<<'),
+        specimenLine1,
+      );
+    });
+
+    test('leaves a clean line untouched', () {
+      expect(cleanup(specimenLine1), specimenLine1);
+      expect(cleanup(specimenLine2), specimenLine2);
+    });
+  });
 }

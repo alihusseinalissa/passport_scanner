@@ -21,3 +21,11 @@ List<String> extractMrzLines(RecognizedText text) {
       ? const []
       : candidates.sublist(candidates.length - 2);
 }
+
+/// Stage 2 — cleanup.
+///
+/// Normalizes an extracted line to the MRZ alphabet: maps ML Kit's frequent
+/// `«` misread of the `<` filler back, strips any remaining whitespace and
+/// uppercases. Idempotent, so it is safe to apply to already-clean lines.
+String cleanup(String line) =>
+    line.replaceAll('«', '<').replaceAll(RegExp(r'\s+'), '').toUpperCase();

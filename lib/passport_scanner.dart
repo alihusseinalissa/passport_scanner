@@ -119,9 +119,7 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
         inputImage,
       );
 
-      final mrz = extractMrzLines(recognizedText)
-          .map((line) => line.replaceAll('«', '<'))
-          .toList();
+      final mrz = extractMrzLines(recognizedText).map(cleanup).toList();
 
       if (mrz.isEmpty) {
         widget.onNoMrzFound?.call();
