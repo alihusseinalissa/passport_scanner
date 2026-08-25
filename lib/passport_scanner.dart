@@ -9,9 +9,22 @@ import 'ml_kit_utils.dart';
 import 'src/mrz_postprocess.dart';
 import 'package:image/image.dart' as imglib;
 
+/// Minimum interval between two consecutive [PassportScannerWidget.onNoMrzFound]
+/// or [PassportScannerWidget.onParsingFailed] calls.
+const _callbackThrottle = Duration(seconds: 2);
+
 class PassportScannerWidget extends StatefulWidget {
   final Function(MRZResult result, String? imagePath) onScanned;
+
+  /// Called when MRZ-shaped lines were found but did not validate, even after
+  /// look-alike arbitration. Receives the lines as fed to the parser.
+  ///
+  /// Throttled: called at most once every 2 seconds.
   final Function(List<String> scannedLines)? onParsingFailed;
+
+  /// Called when an analyzed frame contains no MRZ-shaped lines.
+  ///
+  /// Throttled: called at most once every 2 seconds while no MRZ is visible.
   final Function()? onNoMrzFound;
   final int precision;
   final bool showFlashButton;
@@ -38,6 +51,31 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
   bool _hasScannedSuccessfully = false;
   Map<MRZResult, int> results = {};
   String? savedImagePath;
+  DateTime? _lastNoMrz;
+  DateTime? _lastParsingFailed;
+
+  /// Returns true (and stamps [last]) when at least [_callbackThrottle] has
+  /// elapsed since the previous accepted call.
+  bool _throttle(DateTime? last, void Function(DateTime now) stamp) {
+    final now = DateTime.now();
+    if (last != null && now.difference(last) < _callbackThrottle) return false;
+    stamp(now);
+    return true;
+  }
+
+  void _reportNoMrz() {
+    if (widget.onNoMrzFound == null) return;
+    if (!_throttle(_lastNoMrz, (now) => _lastNoMrz = now)) return;
+    if (mounted) widget.onNoMrzFound?.call();
+  }
+
+  void _reportParsingFailed(List<String> mrz) {
+    if (widget.onParsingFailed == null) return;
+    if (!_throttle(_lastParsingFailed, (now) => _lastParsingFailed = now)) {
+      return;
+    }
+    if (mounted) widget.onParsingFailed?.call(mrz);
+  }
 
   @override
   void dispose() {
@@ -122,33 +160,34 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
       final lines = extractMrzLines(recognizedText).map(cleanup).toList();
 
       if (lines.isEmpty) {
-        widget.onNoMrzFound?.call();
+        _reportNoMrz();
         return;
       }
 
       final mrz = normalizeTd3(lines);
+      final result = parseWithArbitration(mrz);
 
-      try {
-        final result = MRZParser.parse(mrz);
-        if (results.keys.contains(result)) {
-          if (results[result]! < widget.precision) {
-            results[result] = results[result]! + 1;
-            debugPrint(
-              "MRZ SCANNED SUCCESSFULLY, BUT NEED MORE PRECISION: ${results[result]} / ${widget.precision}",
-            );
-          } else {
-            debugPrint("MRZ SCANNED SUCCESSFULLY");
-            _hasScannedSuccessfully = true;
+      if (result == null) {
+        debugPrint("MRZ lines found but failed check-digit validation");
+        _reportParsingFailed(mrz);
+        return;
+      }
 
-            savedImagePath = await saveImageAndGetPath(img);
-            widget.onScanned(result, savedImagePath);
-          }
+      if (results.keys.contains(result)) {
+        if (results[result]! < widget.precision) {
+          results[result] = results[result]! + 1;
+          debugPrint(
+            "MRZ SCANNED SUCCESSFULLY, BUT NEED MORE PRECISION: ${results[result]} / ${widget.precision}",
+          );
         } else {
-          results[result] = 1;
+          debugPrint("MRZ SCANNED SUCCESSFULLY");
+          _hasScannedSuccessfully = true;
+
+          savedImagePath = await saveImageAndGetPath(img);
+          widget.onScanned(result, savedImagePath);
         }
-      } on MRZException catch (e) {
-        debugPrint(e.toString());
-        widget.onParsingFailed?.call(mrz);
+      } else {
+        results[result] = 1;
       }
     } finally {
       _isProcessingFrame = false;

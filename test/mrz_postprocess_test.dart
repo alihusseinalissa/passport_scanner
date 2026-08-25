@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:mrz_parser/mrz_parser.dart';
 import 'package:passport_scanner/src/mrz_postprocess.dart';
 
 // ICAO 9303 TD3 specimen.
@@ -10,27 +11,53 @@ const specimenLine1 = 'P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<';
 const specimenLine2 = 'L898902C36UTO7408122F1204159ZE184226B<<<<<10';
 
 TextLine line(String text) => TextLine(
-      text: text,
-      elements: const [],
-      boundingBox: Rect.zero,
-      recognizedLanguages: const [],
-      cornerPoints: const <Point<int>>[],
-      confidence: null,
-      angle: null,
-    );
+  text: text,
+  elements: const [],
+  boundingBox: Rect.zero,
+  recognizedLanguages: const [],
+  cornerPoints: const <Point<int>>[],
+  confidence: null,
+  angle: null,
+);
 
 TextBlock block(List<String> lines) => TextBlock(
-      text: lines.join('\n'),
-      lines: lines.map(line).toList(),
-      boundingBox: Rect.zero,
-      recognizedLanguages: const [],
-      cornerPoints: const <Point<int>>[],
-    );
+  text: lines.join('\n'),
+  lines: lines.map(line).toList(),
+  boundingBox: Rect.zero,
+  recognizedLanguages: const [],
+  cornerPoints: const <Point<int>>[],
+);
 
-RecognizedText recognized(List<TextBlock> blocks) => RecognizedText(
-      text: blocks.map((b) => b.text).join('\n'),
-      blocks: blocks,
-    );
+RecognizedText recognized(List<TextBlock> blocks) =>
+    RecognizedText(text: blocks.map((b) => b.text).join('\n'), blocks: blocks);
+
+/// ICAO 9303 check digit (weights 7, 3, 1; `<` counts as 0).
+int checkDigit(String input) {
+  const weights = [7, 3, 1];
+  var sum = 0;
+  for (var i = 0; i < input.length; i++) {
+    final c = input.codeUnitAt(i);
+    final v = c >= 65 && c <= 90
+        ? c - 65 + 10
+        : c >= 48 && c <= 57
+        ? c - 48
+        : 0;
+    sum += v * weights[i % 3];
+  }
+  return sum % 10;
+}
+
+/// Builds a valid specimen line 2 around [documentNumber] (9 characters),
+/// recomputing its check digit and the composite check digit.
+String line2For(String documentNumber) {
+  assert(documentNumber.length == 9);
+  const birth = '7408122';
+  const expiry = '1204159';
+  const optional = 'ZE184226B<<<<<1';
+  final head = '$documentNumber${checkDigit(documentNumber)}';
+  final composite = checkDigit('$head$birth$expiry$optional');
+  return '${head}UTO${birth}F$expiry$optional$composite';
+}
 
 void main() {
   group('extractMrzLines', () {
@@ -76,8 +103,8 @@ void main() {
     });
 
     test('strips spaces and uppercases before matching', () {
-      final spaced =
-          'P<UTO ERIKSSON<<ANNA<MARIA <<<<<<<<<<<<<<<<<<<'.toLowerCase();
+      final spaced = 'P<UTO ERIKSSON<<ANNA<MARIA <<<<<<<<<<<<<<<<<<<'
+          .toLowerCase();
       final text = recognized([
         block([spaced, specimenLine2]),
       ]);
@@ -85,8 +112,11 @@ void main() {
     });
 
     test('accepts lines with the « misread and OCR length slack', () {
-      final withGuillemet =
-          specimenLine2.replaceRange(37, 42, '«««««'); // fillers misread
+      final withGuillemet = specimenLine2.replaceRange(
+        37,
+        42,
+        '«««««',
+      ); // fillers misread
       final shortLine = specimenLine1.substring(0, 42); // 42 chars, in slack
       final text = recognized([
         block([shortLine, withGuillemet]),
@@ -183,6 +213,82 @@ void main() {
     test('passes through anything that is not a two-line MRZ', () {
       expect(normalizeTd3(const []), isEmpty);
       expect(normalizeTd3([specimenLine1]), [specimenLine1]);
+    });
+  });
+
+  group('parseWithArbitration', () {
+    test('the specimen fixture is self-consistent', () {
+      expect(line2For('L898902C3'), specimenLine2);
+      expect(checkDigit('L898902C3'), 6);
+    });
+
+    test('parses a clean MRZ directly', () {
+      final result = parseWithArbitration([specimenLine1, specimenLine2]);
+      expect(result, isNotNull);
+      expect(result!.documentNumber, 'L898902C3');
+      expect(result.surnames, 'ERIKSSON');
+      expect(result.givenNames, 'ANNA MARIA');
+    });
+
+    test('recovers a document number with one swapped look-alike', () {
+      final line2 = specimenLine2.replaceRange(0, 9, 'L8989O2C3'); // 0 → O
+      expect(MRZParser.tryParse([specimenLine1, line2]), isNull);
+      final result = parseWithArbitration([specimenLine1, line2]);
+      expect(result?.documentNumber, 'L898902C3');
+    });
+
+    test('recovers a document number with two swapped look-alikes', () {
+      final line2 = specimenLine2.replaceRange(0, 9, 'LB989O2C3'); // 8→B, 0→O
+      expect(MRZParser.tryParse([specimenLine1, line2]), isNull);
+      final result = parseWithArbitration([specimenLine1, line2]);
+      expect(result?.documentNumber, 'L898902C3');
+    });
+
+    test('returns null when the confusion is outside the document number', () {
+      // Birth date check digit corrupted to a different digit.
+      final line2 = specimenLine2.replaceRange(19, 20, '3');
+      expect(parseWithArbitration([specimenLine1, line2]), isNull);
+    });
+
+    test('returns null past the candidate cap', () {
+      // Nine ambiguous characters → 2^9 candidates, far beyond the cap.
+      final clean = line2For('000000000');
+      expect(parseWithArbitration([specimenLine1, clean]), isNotNull);
+      final line2 = clean.replaceRange(0, 9, 'OOOOOOOOO');
+      expect(parseWithArbitration([specimenLine1, line2]), isNull);
+    });
+
+    test('recovers exactly at the candidate cap', () {
+      // Five ambiguous characters (1 2 5 6 8) → 2^5 == the cap.
+      expect(1 << 5, maxArbitrationCandidates);
+      final clean = line2For('1234567C8');
+      final line2 = clean.replaceRange(0, 9, 'I234567C8');
+      expect(MRZParser.tryParse([specimenLine1, line2]), isNull);
+      expect(
+        parseWithArbitration([specimenLine1, line2])?.documentNumber,
+        '1234567C8',
+      );
+    });
+
+    test('prefers the candidate with the fewest substitutions', () {
+      // Read JSB4B4EIF (1 → I). In plain bitmask order the 3-flip candidate
+      // J58484EIF satisfies the check digit before the 1-flip truth does;
+      // fewest-substitutions ordering must return the truth.
+      final clean = line2For('JSB4B4E1F');
+      final line2 = clean.replaceRange(0, 9, 'JSB4B4EIF');
+      expect(
+        parseWithArbitration([specimenLine1, line2])?.documentNumber,
+        'JSB4B4E1F',
+      );
+    });
+
+    test('returns null for input that is not a two-line TD3 MRZ', () {
+      expect(parseWithArbitration(const []), isNull);
+      expect(parseWithArbitration([specimenLine1]), isNull);
+      expect(
+        parseWithArbitration([specimenLine1, specimenLine2.substring(1)]),
+        isNull,
+      );
     });
   });
 }
