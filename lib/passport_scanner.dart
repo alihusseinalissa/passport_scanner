@@ -26,6 +26,13 @@ class PassportScannerWidget extends StatefulWidget {
   ///
   /// Throttled: called at most once every 2 seconds while no MRZ is visible.
   final Function()? onNoMrzFound;
+
+  /// Number of identical, check-digit-validated reads required before
+  /// [onScanned] fires. Must be at least 1.
+  ///
+  /// `1` accepts the first validated read; `2` (the default) waits for a
+  /// second frame that yields exactly the same result, guarding against a
+  /// consistently misread character that happens to pass every check digit.
   final int precision;
   final bool showFlashButton;
 
@@ -34,9 +41,9 @@ class PassportScannerWidget extends StatefulWidget {
     required this.onScanned,
     this.onParsingFailed,
     this.onNoMrzFound,
-    this.precision = 3,
+    this.precision = 2,
     this.showFlashButton = false,
-  });
+  }) : assert(precision >= 1, 'precision must be at least 1');
 
   @override
   State<PassportScannerWidget> createState() => _PassportScannerWidgetState();
@@ -49,7 +56,7 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
   Map<String, int> dataCounts = {};
   bool _isProcessingFrame = false;
   bool _hasScannedSuccessfully = false;
-  Map<MRZResult, int> results = {};
+  late final _confirmation = ConfirmationCounter(widget.precision);
   String? savedImagePath;
   DateTime? _lastNoMrz;
   DateTime? _lastParsingFailed;
@@ -173,22 +180,19 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
         return;
       }
 
-      if (results.keys.contains(result)) {
-        if (results[result]! < widget.precision) {
-          results[result] = results[result]! + 1;
-          debugPrint(
-            "MRZ SCANNED SUCCESSFULLY, BUT NEED MORE PRECISION: ${results[result]} / ${widget.precision}",
-          );
-        } else {
-          debugPrint("MRZ SCANNED SUCCESSFULLY");
-          _hasScannedSuccessfully = true;
-
-          savedImagePath = await saveImageAndGetPath(img);
-          widget.onScanned(result, savedImagePath);
-        }
-      } else {
-        results[result] = 1;
+      if (!_confirmation.record(result)) {
+        debugPrint(
+          "MRZ SCANNED SUCCESSFULLY, BUT NEED MORE PRECISION: ${_confirmation.countOf(result)} / ${widget.precision}",
+        );
+        return;
       }
+
+      debugPrint("MRZ SCANNED SUCCESSFULLY");
+      _hasScannedSuccessfully = true;
+
+      savedImagePath = await saveImageAndGetPath(img);
+      if (!mounted) return;
+      widget.onScanned(result, savedImagePath);
     } finally {
       _isProcessingFrame = false;
     }

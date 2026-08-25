@@ -1,3 +1,17 @@
+## 0.4.0 (unreleased)
+
+* **Breaking:** `precision: N` now means exactly N identical reads (it previously
+  required N + 1, and `precision: 1` could never succeed). The default drops from
+  3 to 2 — every read is now check-digit validated, so two identical reads is a
+  strong signal and scans complete faster. `precision` must be at least 1.
+* MRZ lines are selected by shape across all recognized text instead of assuming
+  the last ML Kit block is the MRZ.
+* Look-alike characters (`O/0`, `I/1`, `S/5`, `B/8`, `Z/2`, `G/6`) are corrected
+  by field position, and the document number is arbitrated with its check digit,
+  so near-miss frames are recovered instead of discarded.
+* `onNoMrzFound` and `onParsingFailed` are throttled to at most once every 2
+  seconds; `onParsingFailed` fires only after arbitration also fails.
+
 ## 0.3.3
 
 * Fixed image rotation for iOS

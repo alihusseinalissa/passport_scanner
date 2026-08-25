@@ -222,3 +222,29 @@ int _bitCount(int v) {
   }
   return n;
 }
+
+/// Stage 5 — confirmation.
+///
+/// Counts identical validated reads and reports success when one result has
+/// been seen [required] times. `required: 1` accepts the first validated read;
+/// `required: N` needs exactly N identical reads.
+class ConfirmationCounter {
+  ConfirmationCounter(this.required) : assert(required >= 1);
+
+  final int required;
+  final Map<MRZResult, int> _counts = {};
+
+  /// Number of times [result] has been recorded so far.
+  int countOf(MRZResult result) => _counts[result] ?? 0;
+
+  /// Records one sighting of [result] and returns `true` once it has been
+  /// seen [required] times.
+  bool record(MRZResult result) {
+    final count = countOf(result) + 1;
+    _counts[result] = count;
+    return count >= required;
+  }
+
+  /// Forgets every sighting.
+  void reset() => _counts.clear();
+}

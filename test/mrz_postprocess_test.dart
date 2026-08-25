@@ -291,4 +291,40 @@ void main() {
       );
     });
   });
+
+  group('ConfirmationCounter', () {
+    final specimen = MRZParser.parse([specimenLine1, specimenLine2]);
+    final other = MRZParser.parse([specimenLine1, line2For('1234567C8')]);
+
+    test('precision 1 accepts the first validated read', () {
+      expect(ConfirmationCounter(1).record(specimen), isTrue);
+    });
+
+    test('precision N needs exactly N identical reads', () {
+      final counter = ConfirmationCounter(3);
+      expect(counter.record(specimen), isFalse);
+      expect(counter.record(specimen), isFalse);
+      expect(counter.record(specimen), isTrue);
+    });
+
+    test('counts different results independently', () {
+      final counter = ConfirmationCounter(2);
+      expect(counter.record(specimen), isFalse);
+      expect(counter.record(other), isFalse);
+      expect(counter.countOf(specimen), 1);
+      expect(counter.countOf(other), 1);
+      expect(counter.record(specimen), isTrue);
+    });
+
+    test('reset forgets every sighting', () {
+      final counter = ConfirmationCounter(2)..record(specimen);
+      counter.reset();
+      expect(counter.countOf(specimen), 0);
+      expect(counter.record(specimen), isFalse);
+    });
+
+    test('rejects a precision below 1', () {
+      expect(() => ConfirmationCounter(0), throwsAssertionError);
+    });
+  });
 }
