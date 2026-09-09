@@ -4,18 +4,18 @@ version: 0.3.3
 homepage: https://github.com/alihusseinalissa/passport_scanner
 
 environment:
-  sdk: ^3.9.2
+  sdk: ^3.12.0
   flutter: ">=1.20.0"
 
 dependencies:
   flutter:
     sdk: flutter
   camerawesome: ^2.5.0
-  google_mlkit_text_recognition: ^0.15.1
-  google_mlkit_commons: ^0.11.1
+  google_mlkit_text_recognition: ^0.17.1
+  google_mlkit_commons: ^0.13.0
   mrz_parser: ^2.0.1
-  path_provider: ^2.1.5
-  image: ^4.5.4
+  path_provider: ^2.1.6
+  image: ^4.9.2
 
 
 dev_dependencies:

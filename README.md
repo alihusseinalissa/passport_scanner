@@ -1,8 +1,7 @@
 # Passport Scanner
 
-Easily scan passports to extract its information from the MRZ code.
-This app is using the camera of the device to scan the MRZ region (Machine Readable Zone) and parse it to extract the information.
-
+Easily scan passports to extract their information from the MRZ code.
+This app uses the device camera to scan the MRZ (Machine Readable Zone) and parse it to extract the information.
 ## Setup
 Since this package is using [ML Kit](https://pub.dev/packages/google_mlkit_text_recognition) for text recognition, you must satisfy its requirements:
 ### iOS
@@ -51,12 +50,8 @@ Notice that the minimum  `IPHONEOS_DEPLOYMENT_TARGET`  is 15.5, you can set it t
 -   targetSdkVersion: 35
 -   compileSdkVersion: 35
 
-### Supported languages
-
-The ML Kit Text Recognition API can recognize text in any Chinese, Devanagari, Japanese, Korean and Latin character set. Supported languages can be found  [here](https://developers.google.com/ml-kit/vision/text-recognition/v2/languages).
-
 ### Camera permission
-There is **no need** to ask for the camera permission, this will be done automatically.
+There is **no need** to ask for the camera permission; this will be done automatically.
 
 ## Usage
 You can add the `PassportScannerWidget` to your scaffold and pass a listener to get the result data:
@@ -89,4 +84,4 @@ personalNumber2
 
 ## Support Us
 
-This package has created inside [OpenCode](https://opencode.iq/). You can support us by liking it on Pub and staring it on Github, sharing ideas on how we can enhance a certain functionality or by reporting any issues and creating pull requests.
+This package was created inside [OpenCode](https://opencode.iq/). You can support us by liking it on Pub, starring it on GitHub, sharing ideas on how we could enhance a certain functionality, or reporting issues and creating pull requests.

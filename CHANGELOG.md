@@ -1,4 +1,4 @@
-## 0.4.0 (unreleased)
+## 1.0.0 (unreleased)
 
 * **Breaking:** `precision: N` now means exactly N identical reads (it previously
   required N + 1, and `precision: 1` could never succeed). The default drops from
