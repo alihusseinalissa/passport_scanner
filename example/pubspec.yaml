@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
   passport_scanner:
     path: ../
+  mrz_parser: ^2.0.1
 
 
 dev_dependencies:
