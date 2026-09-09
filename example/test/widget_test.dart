@@ -23,7 +23,8 @@ void main() {
     await tester.pumpWidget(const PassportScannerDemoApp());
 
     expect(find.text('No document scanned yet'), findsOneWidget);
-    expect(find.text('Scan a document'), findsOneWidget);
+    expect(find.text('Scan with camera'), findsOneWidget);
+    expect(find.text('Choose from gallery'), findsOneWidget);
   });
 
   testWidgets('result view shows every parsed field', (tester) async {
@@ -35,6 +36,8 @@ void main() {
               result: _sample,
               imagePath: null,
               scannedAt: DateTime(2026, 1, 1, 9, 30),
+              sourceIcon: ScanSource.gallery.icon,
+              sourceLabel: ScanSource.gallery.label,
             ),
           ),
         ),
@@ -51,6 +54,10 @@ void main() {
     expect(find.text('09 Mar 2030'), findsOneWidget);
     expect(find.text('999999990'), findsOneWidget);
     expect(find.text('Passport'), findsOneWidget);
+    expect(
+      find.text('Check digits verified · read from the gallery at 09:30'),
+      findsOneWidget,
+    );
   });
 
   group('formatting', () {
@@ -69,7 +76,10 @@ void main() {
       expect(expiryLabel(DateTime(2026, 1, 10), now: now), 'Expires today');
       expect(expiryLabel(DateTime(2026, 1, 15), now: now), 'Expires in 5 days');
       expect(expiryLabel(DateTime(2026, 1, 9), now: now), 'Expired 1 day ago');
-      expect(expiryLabel(DateTime(2020, 1, 10), now: now), 'Expired 6 years ago');
+      expect(
+        expiryLabel(DateTime(2020, 1, 10), now: now),
+        'Expired 6 years ago',
+      );
     });
 
     test('document type resolves ICAO codes, keeping subtypes visible', () {

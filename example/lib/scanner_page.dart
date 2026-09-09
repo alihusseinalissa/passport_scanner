@@ -10,10 +10,7 @@ enum _ScanHint {
     Icons.center_focus_weak_rounded,
     'Align the two lines at the bottom of the page',
   ),
-  noMrz(
-    Icons.search_off_rounded,
-    'No machine-readable zone in view',
-  ),
+  noMrz(Icons.search_off_rounded, 'No machine-readable zone in view'),
   unreadable(
     Icons.blur_on_rounded,
     'Lines found but unreadable — reduce glare and hold steady',
@@ -55,7 +52,9 @@ class _ScannerPageState extends State<ScannerPage> {
             onNoMrzFound: () => _setHint(_ScanHint.noMrz),
             onParsingFailed: (_) => _setHint(_ScanHint.unreadable),
             onScanned: (result, imagePath) {
-              Navigator.of(context).pop(Scan(result, imagePath));
+              Navigator.of(
+                context,
+              ).pop(Scan(result, imagePath, ScanSource.camera));
             },
           ),
           SafeArea(

@@ -9,6 +9,8 @@ import 'ml_kit_utils.dart';
 import 'src/mrz_postprocess.dart';
 import 'package:image/image.dart' as imglib;
 
+export 'src/image_scan.dart';
+
 /// Minimum interval between two consecutive [PassportScannerWidget.onNoMrzFound]
 /// or [PassportScannerWidget.onParsingFailed] calls.
 const _callbackThrottle = Duration(seconds: 2);

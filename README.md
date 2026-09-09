@@ -1,7 +1,7 @@
 # Passport Scanner
 
 Easily scan passports to extract their information from the MRZ code.
-This app uses the device camera to scan the MRZ (Machine Readable Zone) and parse it to extract the information.
+This package reads the MRZ (Machine Readable Zone) and parses it to extract the information, either **live from the device camera** or from a **still image picked from the gallery**.
 ## Setup
 Since this package is using [ML Kit](https://pub.dev/packages/google_mlkit_text_recognition) for text recognition, you must satisfy its requirements:
 ### iOS
@@ -50,10 +50,23 @@ Notice that the minimum  `IPHONEOS_DEPLOYMENT_TARGET`  is 15.5, you can set it t
 -   targetSdkVersion: 35
 -   compileSdkVersion: 35
 
-### Camera permission
-There is **no need** to ask for the camera permission; this will be done automatically.
+### Camera and photo permissions
+There is **no need** to request permissions yourself; the camera and the photo picker each ask for what they need.
+
+On iOS, add the usage descriptions to your `Info.plist`:
+
+```xml
+<key>NSCameraUsageDescription</key>
+<string>The camera is used to scan the machine-readable zone of a passport.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>Photos are read so a passport you already photographed can be scanned.</string>
+```
+
+The photo entry is only needed if you use the gallery scan.
 
 ## Usage
+
+### Scanning with the camera
 You can add the `PassportScannerWidget` to your scaffold and pass a listener to get the result data:
 
 ```dart
@@ -79,6 +92,47 @@ sex
 expiryDate
 personalNumber
 personalNumber2
+```
+
+### Scanning an image from the gallery
+`scanPassportFromGallery()` opens the system photo picker and reads the MRZ from
+whatever the user chooses — no widget, no camera:
+
+```dart
+final scan = await scanPassportFromGallery();
+
+if (scan.isSuccess) {
+  final MRZResult result = scan.result!;
+  print('Scanned: ${result.documentNumber}, ${result.givenNames} ${result.surnames}');
+  print('From image: ${scan.imagePath}');
+} else {
+  switch (scan.failure!) {
+    case PassportScanFailure.cancelled:      // the picker was dismissed
+    case PassportScanFailure.unreadableImage: // missing or undecodable file
+    case PassportScanFailure.noMrzFound:      // no MRZ-shaped lines in the image
+    case PassportScanFailure.invalidMrz:      // lines found, check digits failed
+  }
+}
+```
+
+Every returned result is check-digit validated, exactly like a camera scan. The
+image is read as stored first, then retried at 90°, 270° and 180°, so a photo
+that was taken sideways or upside down still scans; pass `tryRotations: false`
+to skip those retries. On failure, `scan.mrzLines` holds the lines as they were
+fed to the parser, which is useful for diagnostics.
+
+To scan an image you already have on disk, use `scanPassportImage(path)`. When
+scanning several images in a row, create one `PassportImageScanner`, call
+`scanFile` / `scanFromGallery` on it and `dispose()` it when done — that reuses
+a single ML Kit recognizer instead of creating one per image:
+
+```dart
+final scanner = PassportImageScanner();
+for (final path in paths) {
+  final scan = await scanner.scanFile(path);
+  ...
+}
+await scanner.dispose();
 ```
 
 

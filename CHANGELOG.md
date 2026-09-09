@@ -1,5 +1,11 @@
 ## 1.0.0 (unreleased)
 
+* Added still-image scanning: `scanPassportFromGallery()` opens the system photo
+  picker, `scanPassportImage(path)` reads an image already on disk, and
+  `PassportImageScanner` scans several images with one ML Kit recognizer. Both
+  return a `PassportScan` carrying either a check-digit validated `MRZResult` or
+  a `PassportScanFailure`. An image that yields nothing as stored is retried at
+  90°, 270° and 180°, so sideways and upside-down photos still scan.
 * **Breaking:** `precision: N` now means exactly N identical reads (it previously
   required N + 1, and `precision: 1` could never succeed). The default drops from
   3 to 2 — every read is now check-digit validated, so two identical reads is a

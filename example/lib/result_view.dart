@@ -14,11 +14,17 @@ class ScanResultView extends StatelessWidget {
     required this.result,
     required this.imagePath,
     required this.scannedAt,
+    required this.sourceIcon,
+    required this.sourceLabel,
   });
 
   final MRZResult result;
   final String? imagePath;
   final DateTime scannedAt;
+
+  /// How this scan was captured — camera or gallery — shown in the footer.
+  final IconData sourceIcon;
+  final String sourceLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +99,11 @@ class ScanResultView extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        _ScanMetaFooter(scannedAt: scannedAt),
+        _ScanMetaFooter(
+          scannedAt: scannedAt,
+          sourceIcon: sourceIcon,
+          sourceLabel: sourceLabel,
+        ),
       ],
     );
   }
@@ -489,9 +499,15 @@ class _FieldTile extends StatelessWidget {
 }
 
 class _ScanMetaFooter extends StatelessWidget {
-  const _ScanMetaFooter({required this.scannedAt});
+  const _ScanMetaFooter({
+    required this.scannedAt,
+    required this.sourceIcon,
+    required this.sourceLabel,
+  });
 
   final DateTime scannedAt;
+  final IconData sourceIcon;
+  final String sourceLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -504,11 +520,11 @@ class _ScanMetaFooter extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.shield_outlined, size: 14, color: colors.onSurfaceVariant),
+        Icon(sourceIcon, size: 14, color: colors.onSurfaceVariant),
         const SizedBox(width: 6),
         Flexible(
           child: Text(
-            'Check digits verified · scanned at $time',
+            'Check digits verified · read from the $sourceLabel at $time',
             style: theme.textTheme.bodySmall?.copyWith(
               color: colors.onSurfaceVariant,
             ),
@@ -539,7 +555,10 @@ class _Chip extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final (background, foreground) = switch (tone) {
-      _ChipTone.positive => (colors.primaryContainer, colors.onPrimaryContainer),
+      _ChipTone.positive => (
+        colors.primaryContainer,
+        colors.onPrimaryContainer,
+      ),
       _ChipTone.alert => (colors.errorContainer, colors.onErrorContainer),
       _ChipTone.neutral => (
         colors.surfaceContainerHighest,
