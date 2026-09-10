@@ -311,7 +311,7 @@ class _TipsCard extends StatelessWidget {
 
   static const _tips = [
     (Icons.wb_sunny_outlined, 'Use even lighting and avoid glare on the page'),
-    (Icons.crop_free_rounded, 'Fit both MRZ lines inside the frame'),
+    (Icons.crop_free_rounded, 'Fit the passport page inside the frame'),
     (Icons.pan_tool_outlined, 'Hold steady — two matching reads are required'),
     (
       Icons.photo_library_outlined,

@@ -17,6 +17,17 @@
   so near-miss frames are recovered instead of discarded.
 * `onNoMrzFound` and `onParsingFailed` are throttled to at most once every 2
   seconds; `onParsingFailed` fires only after arbitration also fails.
+* The scan-area overlay is now real: text recognition runs only on the frame
+  region inside the passport-shaped outline, and the outline is drawn where the
+  crop is taken, so what you aim at is what gets scanned. The outline has the
+  ID-3 passport aspect ratio and is centred on the preview.
+* **Breaking:** the image handed to `onScanned` is now a crop of the scan area
+  (the passport page as framed), rotated upright, instead of the full camera
+  frame rotated by a fixed 90°. It honours the frame's real rotation on both
+  platforms and the row stride of iOS buffers, so it is no longer sideways in
+  landscape or sheared on devices that pad rows.
+* **Breaking:** `BarcodeFocusAreaPainter` is replaced by `ScanAreaPainter`, and
+  the internal `ml_kit_utils` library is no longer published.
 
 ## 0.3.3
 
