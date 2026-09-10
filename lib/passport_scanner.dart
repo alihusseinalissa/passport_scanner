@@ -59,6 +59,7 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
   Map<String, int> dataCounts = {};
   bool _isProcessingFrame = false;
   bool _hasScannedSuccessfully = false;
+  bool _disposed = false;
   late final _confirmation = ConfirmationCounter(widget.precision);
   String? savedImagePath;
   DateTime? _lastNoMrz;
@@ -89,7 +90,11 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
 
   @override
   void dispose() {
-    _textRecognizer.close();
+    _disposed = true;
+    // Frames arrive asynchronously; closing the recognizer while a
+    // processImage call is in flight throws a platform exception. If a frame
+    // is mid-flight, the finally block in _processImageMrz closes it instead.
+    if (!_isProcessingFrame) _textRecognizer.close();
     super.dispose();
   }
 
@@ -149,7 +154,8 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
     );
   }
 
-  Future _processImageMrz(AnalysisImage img) async {
+  Future<void> _processImageMrz(AnalysisImage img) async {
+    if (_disposed) return; // widget gone; recognizer is (or will be) closed
     if (_hasScannedSuccessfully) return; // already done
     if (_isProcessingFrame) return; // drop frame if busy
 
@@ -197,6 +203,9 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
       widget.onScanned(result, savedImagePath);
     } finally {
       _isProcessingFrame = false;
+      // dispose() ran while this frame was in flight: close the recognizer
+      // now that no call is using it.
+      if (_disposed) _textRecognizer.close();
     }
   }
 
