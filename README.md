@@ -67,19 +67,39 @@ The photo entry is only needed if you use the gallery scan.
 ## Usage
 
 ### Scanning with the camera
-You can add the `PassportScannerWidget` to your scaffold and pass a listener to get the result data:
+Add the `PassportScannerWidget` to your scaffold and pass an `onScanned`
+listener to get the result data. `onScanned` receives the parsed `MRZResult`
+and the path of a JPEG of the scanned passport page, or `null` if saving the
+image failed:
 
 ```dart
-Scaffold(  
-  appBar: AppBar(title: Text('Passport Scanner')),  
-  body: PassportScannerWidget(  
-    onScanned: (result) {  
+Scaffold(
+  appBar: AppBar(title: Text('Passport Scanner')),
+  body: PassportScannerWidget(
+    precision: 2,        // identical validated reads required before success
+    showFlashButton: true,
+    onScanned: (result, imagePath) {
       print('Scanned: ${result.documentNumber}, ${result.givenNames} ${result.surnames}');
-    },  
-  ),  
+      print('Passport image saved at: $imagePath');
+    },
+    onParsingFailed: (lines) => print('Could not parse: $lines'),
+    onNoMrzFound: () => print('Aim the MRZ inside the frame'),
+  ),
 )
 ```
-The data will be an `MRZResult` object, and it includes these information:
+
+| Parameter         | Type                                       | Default  | Description |
+|-------------------|--------------------------------------------|----------|-------------|
+| `onScanned`       | `void Function(MRZResult, String? imagePath)` | required | Called once when the same MRZ has been read `precision` times. `imagePath` is a JPEG of the passport page, as framed by the scan area and rotated upright, in the temporary directory. |
+| `onParsingFailed` | `void Function(List<String> lines)?`       | `null`   | Called when MRZ-shaped lines were found but failed check-digit validation, with the lines as fed to the parser. Throttled to once every 2 seconds. |
+| `onNoMrzFound`    | `void Function()?`                         | `null`   | Called when an analyzed frame contains no MRZ-shaped lines. Throttled to once every 2 seconds. |
+| `precision`       | `int`                                      | `2`      | Number of identical, validated reads required before `onScanned` fires. Must be at least 1; `1` accepts the first validated read. |
+| `showFlashButton` | `bool`                                     | `false`  | Whether to show a torch toggle in the top-left corner of the preview. |
+
+`onScanned` fires only once. To scan another passport, rebuild the widget
+(for example, push a new scanner screen).
+
+The result is an `MRZResult` object, and it includes this information:
 ```dart
 documentType
 countryCode
