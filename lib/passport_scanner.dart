@@ -179,7 +179,7 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
         return;
       }
 
-      final mrz = normalizeTd3(lines);
+      final mrz = normalizeTd3(restoreFillers(lines));
       final result = parseWithArbitration(mrz);
 
       if (result == null) {

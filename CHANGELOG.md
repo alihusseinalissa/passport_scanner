@@ -12,6 +12,11 @@
   strong signal and scans complete faster. `precision` must be at least 1.
 * MRZ lines are selected by shape across all recognized text instead of assuming
   the last ML Kit block is the MRZ.
+* Filler runs that ML Kit collapses (`<<<<<<<<<<<<<<<<` read as `<<<<<<<`) are
+  restored before parsing, and MRZ lines shortened that way are no longer
+  discarded. When the collapse also swallowed the trailing check digits of an
+  empty personal number, the composite check digit is computed rather than
+  read; every other field is still verified against its own check digit.
 * Look-alike characters (`O/0`, `I/1`, `S/5`, `B/8`, `Z/2`, `G/6`) are corrected
   by field position, and the document number is arbitrated with its check digit,
   so near-miss frames are recovered instead of discarded.

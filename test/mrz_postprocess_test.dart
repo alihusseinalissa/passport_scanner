@@ -10,6 +10,16 @@ import 'package:passport_scanner/src/mrz_postprocess.dart';
 const specimenLine1 = 'P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<';
 const specimenLine2 = 'L898902C36UTO7408122F1204159ZE184226B<<<<<10';
 
+/// The specimen with an empty personal number: check digit `0` for the empty
+/// field and the composite recomputed (see `checkDigit` below).
+const specimenLine2EmptyPersonal =
+    'L898902C36UTO7408122F1204159<<<<<<<<<<<<<<08';
+
+// The same two lines the way ML Kit tends to return them: long filler runs
+// collapsed and the trailing check digits dropped with them.
+const collapsedLine1 = 'P<UTOERIKSSON<<ANNA<MARIA<<<';
+const collapsedLine2 = 'L898902C36UTO7408122F1204159<<<';
+
 TextLine line(String text) => TextLine(
   text: text,
   elements: const [],
@@ -132,6 +142,96 @@ void main() {
       ]);
       expect(extractMrzLines(text), [specimenLine1, specimenLine2]);
     });
+
+    test('accepts lines whose filler runs ML Kit collapsed', () {
+      final text = recognized([
+        block([collapsedLine1, collapsedLine2]),
+      ]);
+      expect(extractMrzLines(text), [collapsedLine1, collapsedLine2]);
+    });
+
+    test('rejects short lines without fillers and filler-only lines', () {
+      final text = recognized([
+        block(['REPUBLIC OF UTOPIA', 'ERIKSSON', '12 08 1974']),
+        block([collapsedLine1, '<<<<<<<<<<<<<<<<']),
+      ]);
+      expect(extractMrzLines(text), isEmpty);
+    });
+  });
+
+  group('isMrzShaped', () {
+    test('accepts a full-length line with OCR slack', () {
+      expect(isMrzShaped(specimenLine1), isTrue);
+      expect(isMrzShaped(specimenLine1.substring(0, 40)), isTrue);
+      expect(isMrzShaped('$specimenLine1<<'), isTrue);
+    });
+
+    test('accepts a collapsed line down to 10 characters', () {
+      expect(isMrzShaped('P<UTOLI<<WU<'), isTrue);
+      expect(isMrzShaped('P<UTOLI<<W'), isTrue);
+      expect(isMrzShaped('P<UTOLI<<'), isFalse);
+    });
+
+    test('rejects anything outside the MRZ alphabet or without fillers', () {
+      expect(isMrzShaped('P<UTOERIKSSON<<ANNA-MARIA'), isFalse);
+      expect(isMrzShaped('L898902C36UTO7408122F1204159'), isFalse);
+      expect(isMrzShaped('<<<<<<<<<<<<<<<<<<<<'), isFalse);
+      expect(isMrzShaped('$specimenLine1<<<'), isFalse);
+    });
+  });
+
+  group('restoreFillers', () {
+    test('pads line 1 at the end', () {
+      expect(restoreFillers([collapsedLine1, specimenLine2]), [
+        specimenLine1,
+        specimenLine2,
+      ]);
+    });
+
+    test('grows the longest filler run inside the personal number', () {
+      const collapsed = 'L898902C36UTO7408122F1204159ZE184226B<<10';
+      expect(restoreFillers([specimenLine1, collapsed]), [
+        specimenLine1,
+        specimenLine2,
+      ]);
+    });
+
+    test('restores an empty personal number whose check digits were lost', () {
+      expect(restoreFillers([collapsedLine1, collapsedLine2]), [
+        specimenLine1,
+        'L898902C36UTO7408122F1204159<<<<<<<<<<<<<<0<',
+      ]);
+    });
+
+    test('keeps check digits that were read after a collapsed run', () {
+      const collapsed = 'L898902C36UTO7408122F1204159<<<08';
+      expect(restoreFillers([specimenLine1, collapsed]), [
+        specimenLine1,
+        specimenLine2EmptyPersonal,
+      ]);
+    });
+
+    test('inserts the fillers before a tail that has none', () {
+      const collapsed =
+          'L898902C36UTO7408122F1204159'
+          '08';
+      expect(restoreFillers([specimenLine1, collapsed]), [
+        specimenLine1,
+        specimenLine2EmptyPersonal,
+      ]);
+    });
+
+    test('leaves full-length lines and unrepairable input alone', () {
+      expect(restoreFillers([specimenLine1, specimenLine2]), [
+        specimenLine1,
+        specimenLine2,
+      ]);
+      final long = ['$specimenLine1<', '$specimenLine2<'];
+      expect(restoreFillers(long), long);
+      final truncated = [specimenLine1, 'L898902C36UTO7408122F12041'];
+      expect(restoreFillers(truncated), truncated);
+      expect(restoreFillers([specimenLine1]), [specimenLine1]);
+    });
   });
 
   group('cleanup', () {
@@ -220,6 +320,45 @@ void main() {
     test('the specimen fixture is self-consistent', () {
       expect(line2For('L898902C3'), specimenLine2);
       expect(checkDigit('L898902C3'), 6);
+    });
+
+    test('the empty-personal-number fixture is self-consistent', () {
+      final line2 = specimenLine2EmptyPersonal;
+      expect(checkDigit(line2.substring(28, 42)), 0);
+      expect(
+        checkDigit(
+          line2.substring(0, 10) +
+              line2.substring(13, 20) +
+              line2.substring(21, 43),
+        ),
+        8,
+      );
+      expect(MRZParser.parse([specimenLine1, line2]).personalNumber, '');
+    });
+
+    test('fills in a lost composite check digit for an empty personal '
+        'number', () {
+      const unread = 'L898902C36UTO7408122F1204159<<<<<<<<<<<<<<0<';
+      final result = parseWithArbitration([specimenLine1, unread]);
+      expect(
+        result,
+        MRZParser.parse([specimenLine1, specimenLine2EmptyPersonal]),
+      );
+    });
+
+    test('never fills in a composite when the personal number holds data', () {
+      const unread = 'L898902C36UTO7408122F1204159ZE184226B<<<<<1<';
+      expect(parseWithArbitration([specimenLine1, unread]), isNull);
+    });
+
+    test('a collapsed read parses through the whole pipeline', () {
+      final lines = [collapsedLine1, collapsedLine2].map(cleanup).toList();
+      final result = parseWithArbitration(normalizeTd3(restoreFillers(lines)));
+      expect(result, isNotNull);
+      expect(result!.surnames, 'ERIKSSON');
+      expect(result.givenNames, 'ANNA MARIA');
+      expect(result.documentNumber, 'L898902C3');
+      expect(result.personalNumber, '');
     });
 
     test('parses a clean MRZ directly', () {

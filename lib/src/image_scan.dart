@@ -69,7 +69,8 @@ const _fallbackAngles = [90, 270, 180];
 /// Reads the MRZ from still images — a photo from the gallery, a scan on disk.
 ///
 /// Runs the same pipeline as [PassportScannerWidget] (extract → cleanup →
-/// position-aware normalization → parse with check-digit arbitration), minus
+/// filler restoration → position-aware normalization → parse with check-digit
+/// arbitration), minus
 /// the multi-frame confirmation step, which has no meaning for a single image:
 /// every returned result is check-digit validated.
 ///
@@ -168,7 +169,7 @@ class PassportImageScanner {
     final lines = extractMrzLines(recognized).map(cleanup).toList();
     if (lines.isEmpty) return const _Attempt(null, []);
 
-    final mrz = normalizeTd3(lines);
+    final mrz = normalizeTd3(restoreFillers(lines));
     return _Attempt(parseWithArbitration(mrz), mrz);
   }
 

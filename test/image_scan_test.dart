@@ -106,6 +106,25 @@ void main() {
     expect(calls, 1, reason: 'a first-pass success must not rotate');
   });
 
+  test('restores filler runs that ML Kit collapsed', () async {
+    // The specimen with an empty personal number, the way ML Kit returns it:
+    // long filler runs shortened and the trailing check digits lost.
+    responses = [
+      ['P<UTOERIKSSON<<ANNA<MARIA<<<', 'L898902C36UTO7408122F1204159<<<'],
+    ];
+
+    final scan = await scanPassportImage(await writeImage());
+
+    expect(scan.isSuccess, isTrue);
+    expect(scan.mrzLines, [
+      _line1,
+      'L898902C36UTO7408122F1204159<<<<<<<<<<<<<<0<',
+    ]);
+    expect(scan.result!.documentNumber, 'L898902C3');
+    expect(scan.result!.givenNames, 'ANNA MARIA');
+    expect(scan.result!.personalNumber, '');
+  });
+
   test('corrects look-alike characters before parsing', () async {
     // O/0 and I/1 confusions in the nationality, dates and document number.
     responses = [

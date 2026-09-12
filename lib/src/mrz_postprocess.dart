@@ -1,22 +1,55 @@
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:mrz_parser/mrz_parser.dart';
 
-/// TD3 lines are exactly 44 characters from `A–Z 0–9 <`; allow OCR slack of a
-/// few characters. `«` is ML Kit's frequent misread of `<` and is mapped back
-/// in the cleanup step.
-final _mrzShape = RegExp(r'^[A-Z0-9<«]{40,46}$');
+/// The MRZ alphabet as ML Kit reads it: `A–Z 0–9 <`, plus `«`, ML Kit's
+/// frequent misread of `<`, which the cleanup step maps back.
+final _mrzAlphabet = RegExp(r'^[A-Z0-9<«]+$');
+final _filler = RegExp('[<«]');
+final _alphanumeric = RegExp('[A-Z0-9]');
+
+/// OCR slack around [td3LineLength] for a line read in full.
+const _minFullLength = 40;
+const _maxFullLength = 46;
+
+/// Shortest line accepted when ML Kit has collapsed its filler runs (see
+/// [restoreFillers]). Line 2 needs its 28 fixed-position characters to be
+/// repairable at all; a line 1 with short names collapses to something like
+/// `P<UTOLI<<WU<`, so the floor sits below both.
+const _minCollapsedLength = 10;
+
+/// Fewest letters and digits a collapsed line must carry. Rejects a run of
+/// fillers that ML Kit split off the end of a line into a line of its own.
+const _minCollapsedAlphanumerics = 5;
+
+/// Whether [line] — uppercased, whitespace stripped — looks like a MRZ line.
+///
+/// A line in the MRZ alphabet qualifies when it is [td3LineLength] characters
+/// give or take OCR slack, or when it is shorter but carries the `<` filler,
+/// a character no other text on a passport page contains. The short form is
+/// how ML Kit returns a line whose long filler runs it has collapsed;
+/// [restoreFillers] puts them back. Requiring some letters or digits as well
+/// keeps a stray run of fillers ML Kit split off on its own from qualifying.
+bool isMrzShaped(String line) {
+  if (!_mrzAlphabet.hasMatch(line)) return false;
+  final n = line.length;
+  if (n >= _minFullLength && n <= _maxFullLength) return true;
+  return n >= _minCollapsedLength &&
+      n < _minFullLength &&
+      _filler.hasMatch(line) &&
+      _alphanumeric.allMatches(line).length >= _minCollapsedAlphanumerics;
+}
 
 /// Stage 1 — line extraction.
 ///
-/// Selects MRZ candidate lines by shape across **all** recognized lines,
-/// instead of assuming the MRZ is the last block ML Kit returns. Returns the
-/// last two matching lines (the MRZ sits at the bottom of the page), or an
-/// empty list when fewer than two candidates are found.
+/// Selects MRZ candidate lines by shape ([isMrzShaped]) across **all**
+/// recognized lines, instead of assuming the MRZ is the last block ML Kit
+/// returns. Returns the last two matching lines (the MRZ sits at the bottom
+/// of the page), or an empty list when fewer than two candidates are found.
 List<String> extractMrzLines(RecognizedText text) {
   final candidates = text.blocks
       .expand((b) => b.lines)
       .map((l) => l.text.toUpperCase().replaceAll(' ', ''))
-      .where(_mrzShape.hasMatch)
+      .where(isMrzShaped)
       .toList();
   return candidates.length < 2
       ? const []
@@ -30,6 +63,140 @@ List<String> extractMrzLines(RecognizedText text) {
 /// uppercases. Idempotent, so it is safe to apply to already-clean lines.
 String cleanup(String line) =>
     line.replaceAll('«', '<').replaceAll(RegExp(r'\s+'), '').toUpperCase();
+
+/// TD3 line 2 layout: the fixed-position fields (document number through the
+/// expiry date check digit) end at 28; the personal number runs to 42 and is
+/// followed by its check digit and, at 43, the composite check digit.
+const _line2FixedEnd = 28;
+const _personalNumberEnd = 42;
+const _compositeIndex = 43;
+const _emptyPersonalNumber = '<<<<<<<<<<<<<<';
+
+/// Stage 2b — filler restoration.
+///
+/// ML Kit's recognizer is trained on natural text and treats a long run of
+/// one character as noise: `<<<<<<<<<<<<<<<<` routinely comes back as
+/// `<<<<<<<`, and characters *after* such a run are sometimes dropped with
+/// it. Everything else in the read is correct, but the line is short and the
+/// field positions stage 3 relies on no longer line up.
+///
+/// Puts the missing fillers back so each line is [td3LineLength] characters:
+///
+/// * **Line 1** is padded at the end — the names field is the last thing on
+///   the line and always ends in fillers. Line 1 has no check digit, so a
+///   filler lost from *inside* the names cannot be detected here.
+/// * **Line 2** keeps its 28 fixed-position characters and grows the longest
+///   filler run after them (or inserts one at position 28 when none was
+///   read), which is where the personal number's fillers sit. When the
+///   restored personal number is empty and both trailing check digits are
+///   missing, the personal number's check digit is set to `0` — the value of
+///   an empty field — but the composite stays `<` for stage 4 to fill once
+///   every other correction has been applied ([completeCompositeCheckDigit]).
+///
+/// Lines already [td3LineLength] or longer, a line 2 shorter than its fixed
+/// fields, and anything that is not a two-line MRZ are returned unchanged.
+List<String> restoreFillers(List<String> mrz) {
+  if (mrz.length != 2) return mrz;
+  return [_restoreLine1(mrz[0]), _restoreLine2(mrz[1])];
+}
+
+String _restoreLine1(String line) =>
+    line.length >= td3LineLength ? line : line.padRight(td3LineLength, '<');
+
+String _restoreLine2(String line) {
+  if (line.length >= td3LineLength || line.length < _line2FixedEnd) {
+    return line;
+  }
+  final missing = td3LineLength - line.length;
+  final tail = line.substring(_line2FixedEnd);
+
+  // Longest filler run in the tail; a tie goes to the later run. With no run
+  // at all the fillers go in front of whatever was read.
+  var at = 0;
+  var longest = 0;
+  for (var i = 0; i < tail.length;) {
+    if (tail[i] != '<') {
+      i++;
+      continue;
+    }
+    var j = i;
+    while (j < tail.length && tail[j] == '<') {
+      j++;
+    }
+    if (j - i >= longest) {
+      longest = j - i;
+      at = i;
+    }
+    i = j;
+  }
+
+  var restored =
+      line.substring(0, _line2FixedEnd) +
+      tail.substring(0, at) +
+      '<' * missing +
+      tail.substring(at);
+  if (restored.substring(_line2FixedEnd, _personalNumberEnd) ==
+          _emptyPersonalNumber &&
+      restored[_personalNumberEnd] == '<' &&
+      restored[_compositeIndex] == '<') {
+    restored = restored.replaceRange(
+      _personalNumberEnd,
+      _personalNumberEnd + 1,
+      '0',
+    );
+  }
+  return restored;
+}
+
+/// ICAO 9303 check digit of [input]: weights 7, 3, 1 repeating over `0–9` at
+/// face value, `A–Z` as 10–35 and `<` as 0, modulo 10.
+int checkDigit(String input) {
+  const weights = [7, 3, 1];
+  var sum = 0;
+  for (var i = 0; i < input.length; i++) {
+    final c = input.codeUnitAt(i);
+    final value = c >= 0x41 && c <= 0x5A
+        ? c - 0x41 + 10
+        : c >= 0x30 && c <= 0x39
+        ? c - 0x30
+        : 0;
+    sum += value * weights[i % 3];
+  }
+  return sum % 10;
+}
+
+/// Fills in a composite check digit that OCR dropped, when that is safe.
+///
+/// Applies only when line 2 ends in `<` — [restoreFillers] leaves the
+/// composite position that way when it was not read — *and* the personal
+/// number is empty. Every character the composite covers is then either
+/// verified by its own field check digit (document number, birth date,
+/// expiry date) or a filler, so the composite adds no verification the parser
+/// does not already perform, and computing it lets an otherwise fully
+/// validated read succeed. A line whose personal number holds data is never
+/// completed: its check digits must be read, not computed.
+///
+/// Meant to run on the final candidate, after stage 3 and any arbitration
+/// flips, since both change the characters the composite covers.
+List<String> completeCompositeCheckDigit(List<String> mrz) {
+  if (mrz.length != 2) return mrz;
+  final line2 = mrz[1];
+  if (line2.length != td3LineLength ||
+      line2[_compositeIndex] != '<' ||
+      line2.substring(_line2FixedEnd, _personalNumberEnd) !=
+          _emptyPersonalNumber) {
+    return mrz;
+  }
+  final composite = checkDigit(
+    line2.substring(0, 10) +
+        line2.substring(13, 20) +
+        line2.substring(21, _compositeIndex),
+  );
+  return [
+    mrz[0],
+    line2.replaceRange(_compositeIndex, _compositeIndex + 1, '$composite'),
+  ];
+}
 
 /// Character class a TD3 field position must belong to.
 enum CharClass {
@@ -152,7 +319,7 @@ const _documentNumberEnd = 9;
 
 MRZResult? _tryParse(List<String> mrz) {
   try {
-    return MRZParser.parse(mrz);
+    return MRZParser.parse(completeCompositeCheckDigit(mrz));
   } on MRZException {
     return null;
   } on FormatException {
