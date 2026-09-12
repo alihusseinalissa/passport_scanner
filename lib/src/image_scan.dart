@@ -56,6 +56,7 @@ class PassportScan {
   /// Why the scan produced no result, or `null` when it succeeded.
   final PassportScanFailure? failure;
 
+  /// Whether a verified MRZ was read; equivalent to `result != null`.
   bool get isSuccess => result != null;
 }
 
@@ -83,6 +84,8 @@ const _fallbackAngles = [90, 270, 180];
 /// if (scan.isSuccess) print(scan.result!.documentNumber);
 /// ```
 class PassportImageScanner {
+  /// Creates a scanner holding its own ML Kit recognizer; call [dispose] when
+  /// done with it.
   PassportImageScanner();
 
   final _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);

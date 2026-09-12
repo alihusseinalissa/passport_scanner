@@ -16,7 +16,26 @@ export 'src/image_scan.dart';
 /// or [PassportScannerWidget.onParsingFailed] calls.
 const _callbackThrottle = Duration(seconds: 2);
 
+/// A full-screen camera view that reads a passport's machine-readable zone.
+///
+/// Frames are cropped to the outlined scan area and run through ML Kit text
+/// recognition. Once [precision] consecutive frames yield the same
+/// check-digit-validated MRZ, [onScanned] fires with the parsed result and a
+/// JPEG of the scanned area, and scanning stops.
+///
+/// ```dart
+/// PassportScannerWidget(
+///   onScanned: (result, imagePath) => print(result.documentNumber),
+/// )
+/// ```
+///
+/// To scan a photo instead of a live camera feed, see
+/// [scanPassportFromGallery] and [scanPassportImage].
 class PassportScannerWidget extends StatefulWidget {
+  /// Called once, when the MRZ has been read and confirmed.
+  ///
+  /// [imagePath] points to a JPEG of the scanned area in the temporary
+  /// directory, or is `null` if the image could not be saved.
   final Function(MRZResult result, String? imagePath) onScanned;
 
   /// Called when MRZ-shaped lines were found but did not validate, even after
@@ -37,8 +56,13 @@ class PassportScannerWidget extends StatefulWidget {
   /// second frame that yields exactly the same result, guarding against a
   /// consistently misread character that happens to pass every check digit.
   final int precision;
+
+  /// Whether to show a button that toggles the camera torch. Defaults to
+  /// `false`.
   final bool showFlashButton;
 
+  /// Creates a passport scanner. [onScanned] is required; [precision] must be
+  /// at least 1.
   const PassportScannerWidget({
     super.key,
     required this.onScanned,
@@ -234,8 +258,10 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
 /// preview sits. It uses [scanAreaFor], the same geometry that crops the
 /// analysis frame, so the outline shows exactly what gets scanned.
 class ScanAreaPainter extends CustomPainter {
+  /// Size of the camera preview centred inside the painted area.
   final Size previewSize;
 
+  /// Creates a painter for a preview of [previewSize].
   ScanAreaPainter({required this.previewSize});
 
   /// The scan area in this painter's coordinates.
