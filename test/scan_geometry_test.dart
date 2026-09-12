@@ -26,11 +26,11 @@ void main() {
       final preview = scanAreaFor(const Size(1080, 1440));
       final frame = scanAreaFor(const Size(480, 640));
       Rect norm(Rect r, Size s) => Rect.fromLTRB(
-            r.left / s.width,
-            r.top / s.height,
-            r.right / s.width,
-            r.bottom / s.height,
-          );
+        r.left / s.width,
+        r.top / s.height,
+        r.right / s.width,
+        r.bottom / s.height,
+      );
       final a = norm(preview, const Size(1080, 1440));
       final b = norm(frame, const Size(480, 640));
       expect(a.left, closeTo(b.left, 1e-9));
@@ -49,14 +49,13 @@ void main() {
       double fy,
       Rectangle<int> v,
       int degrees,
-    ) =>
-        switch (degrees) {
-          0 => (x: fx, y: fy),
-          90 => (x: v.height - fy, y: fx),
-          180 => (x: v.width - fx, y: v.height - fy),
-          270 => (x: fy, y: v.width - fx),
-          _ => throw ArgumentError(degrees),
-        };
+    ) => switch (degrees) {
+      0 => (x: fx, y: fy),
+      90 => (x: v.height - fy, y: fx),
+      180 => (x: v.width - fx, y: v.height - fy),
+      270 => (x: fy, y: v.width - fx),
+      _ => throw ArgumentError(degrees),
+    };
 
     for (final degrees in [0, 90, 180, 270]) {
       test('rotation $degrees maps the crop onto the upright scan area', () {
@@ -71,12 +70,16 @@ void main() {
         );
 
         // Every crop corner lands on (within rounding of) an expected corner.
-        final corners = [
-          (crop.left, crop.top),
-          (crop.right, crop.top),
-          (crop.left, crop.bottom),
-          (crop.right, crop.bottom),
-        ].map((c) => upright(c.$1.toDouble(), c.$2.toDouble(), landscape, degrees));
+        final corners =
+            [
+              (crop.left, crop.top),
+              (crop.right, crop.top),
+              (crop.left, crop.bottom),
+              (crop.right, crop.bottom),
+            ].map(
+              (c) =>
+                  upright(c.$1.toDouble(), c.$2.toDouble(), landscape, degrees),
+            );
         for (final c in corners) {
           expect(
             (c.x - expected.left).abs() < 2 || (c.x - expected.right).abs() < 2,

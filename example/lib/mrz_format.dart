@@ -122,8 +122,7 @@ String resultAsText(MRZResult result) {
     'Date of expiry: ${formatDate(result.expiryDate)}',
     if (result.personalNumber.isNotEmpty)
       'Personal number: ${result.personalNumber}',
-    if (result.optionalData.isNotEmpty)
-      'Optional data: ${result.optionalData}',
+    if (result.optionalData.isNotEmpty) 'Optional data: ${result.optionalData}',
   ];
   return lines.join('\n');
 }

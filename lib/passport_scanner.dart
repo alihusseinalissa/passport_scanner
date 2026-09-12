@@ -142,26 +142,29 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
             previewFit: CameraPreviewFit.fitWidth,
             middleContentBuilder: (state) => Container(),
             bottomActionsBuilder: (state) => Container(),
-            topActionsBuilder: (state) => widget.showFlashButton ? Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.flashlight_on_rounded,
-                      color: Colors.white,
-                    ),
-                    onPressed: () {
-                      if (state.sensorConfig.flashMode == FlashMode.always) {
-                        state.sensorConfig.setFlashMode(FlashMode.none);
-                      } else {
-                        state.sensorConfig.setFlashMode(FlashMode.always);
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ) : Container(),
+            topActionsBuilder: (state) => widget.showFlashButton
+                ? Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.flashlight_on_rounded,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            if (state.sensorConfig.flashMode ==
+                                FlashMode.always) {
+                              state.sensorConfig.setFlashMode(FlashMode.none);
+                            } else {
+                              state.sensorConfig.setFlashMode(FlashMode.always);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : Container(),
             theme: AwesomeTheme(
               bottomActionsBackgroundColor: Colors.transparent,
             ),
@@ -192,9 +195,6 @@ class _PassportScannerWidgetState extends State<PassportScannerWidget> {
       final RecognizedText recognizedText = await _textRecognizer.processImage(
         frame.toInputImage(),
       );
-
-      print('recognizedText');
-      print(recognizedText.text);
 
       final lines = extractMrzLines(recognizedText).map(cleanup).toList();
 

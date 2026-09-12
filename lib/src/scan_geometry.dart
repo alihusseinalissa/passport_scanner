@@ -99,10 +99,18 @@ Rectangle<int> scanAreaInFrame({
   final (double x0, double x1, double y0, double y1) = switch (uprightDegrees) {
     0 => (upright.left, upright.right, upright.top, upright.bottom),
     90 => (upright.top, upright.bottom, vh - upright.right, vh - upright.left),
-    180 => (vw - upright.right, vw - upright.left, vh - upright.bottom, vh - upright.top),
+    180 => (
+      vw - upright.right,
+      vw - upright.left,
+      vh - upright.bottom,
+      vh - upright.top,
+    ),
     270 => (vw - upright.bottom, vw - upright.top, upright.left, upright.right),
     _ => throw ArgumentError.value(
-        uprightDegrees, 'uprightDegrees', 'must be 0, 90, 180 or 270'),
+      uprightDegrees,
+      'uprightDegrees',
+      'must be 0, 90, 180 or 270',
+    ),
   };
 
   int even(double v) => v.round() & ~1;

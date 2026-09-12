@@ -199,40 +199,42 @@ void main() {
       expect(frame.height, greaterThan(816 * 0.9));
     });
 
-    test('iOS BGRA adds 90° to the device orientation and reads the stride',
-        () {
-      const w = 64, h = 48, pad = 32;
-      final img = Bgra8888Image(
-        width: w,
-        height: h,
-        planes: [
-          ImagePlane(
-            bytes: syntheticBgra(w, h, pad: pad),
-            bytesPerRow: w * 4 + pad,
-            bytesPerPixel: 4,
-            height: h,
-            width: w,
-          ),
-        ],
-        format: InputAnalysisImageFormat.bgra8888,
-        rotation: InputAnalysisImageRotation.rotation0deg, // portrait device
-      );
-      expect(img.uprightDegrees, 90);
-      final frame = img.cropToScanArea()!;
-      final expected = scanAreaInFrame(
-        visible: const Rectangle(0, 0, w, h),
-        uprightDegrees: 90,
-        bounds: const Rectangle(0, 0, w, h),
-      );
-      expect(frame.width, expected.width);
-      expect(frame.bytesPerRow, expected.width * 4);
-      // Pixel (0,0) of the crop is frame pixel (left, top): B = x, G = y.
-      expect(frame.bytes[0], expected.left);
-      expect(frame.bytes[1], expected.top);
-      // Last pixel of the first row is still on that row (stride honoured).
-      final last = (frame.width - 1) * 4;
-      expect(frame.bytes[last], expected.right - 1);
-      expect(frame.bytes[last + 1], expected.top);
-    });
+    test(
+      'iOS BGRA adds 90° to the device orientation and reads the stride',
+      () {
+        const w = 64, h = 48, pad = 32;
+        final img = Bgra8888Image(
+          width: w,
+          height: h,
+          planes: [
+            ImagePlane(
+              bytes: syntheticBgra(w, h, pad: pad),
+              bytesPerRow: w * 4 + pad,
+              bytesPerPixel: 4,
+              height: h,
+              width: w,
+            ),
+          ],
+          format: InputAnalysisImageFormat.bgra8888,
+          rotation: InputAnalysisImageRotation.rotation0deg, // portrait device
+        );
+        expect(img.uprightDegrees, 90);
+        final frame = img.cropToScanArea()!;
+        final expected = scanAreaInFrame(
+          visible: const Rectangle(0, 0, w, h),
+          uprightDegrees: 90,
+          bounds: const Rectangle(0, 0, w, h),
+        );
+        expect(frame.width, expected.width);
+        expect(frame.bytesPerRow, expected.width * 4);
+        // Pixel (0,0) of the crop is frame pixel (left, top): B = x, G = y.
+        expect(frame.bytes[0], expected.left);
+        expect(frame.bytes[1], expected.top);
+        // Last pixel of the first row is still on that row (stride honoured).
+        final last = (frame.width - 1) * 4;
+        expect(frame.bytes[last], expected.right - 1);
+        expect(frame.bytes[last + 1], expected.top);
+      },
+    );
   });
 }

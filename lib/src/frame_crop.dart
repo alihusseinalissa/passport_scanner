@@ -21,8 +21,10 @@ class CroppedFrame {
     required this.height,
     required this.format,
     required this.uprightDegrees,
-  }) : assert(format == InputAnalysisImageFormat.nv21 ||
-            format == InputAnalysisImageFormat.bgra8888);
+  }) : assert(
+         format == InputAnalysisImageFormat.nv21 ||
+             format == InputAnalysisImageFormat.bgra8888,
+       );
 
   final Uint8List bytes;
   final int width;
@@ -38,14 +40,14 @@ class CroppedFrame {
   /// Wraps the buffer for ML Kit, which rotates it by [uprightDegrees]
   /// itself.
   InputImage toInputImage() => InputImage.fromBytes(
-        bytes: bytes,
-        metadata: InputImageMetadata(
-          size: Size(width.toDouble(), height.toDouble()),
-          rotation: _inputImageRotation(uprightDegrees),
-          format: _isBgra ? InputImageFormat.bgra8888 : InputImageFormat.nv21,
-          bytesPerRow: bytesPerRow,
-        ),
-      );
+    bytes: bytes,
+    metadata: InputImageMetadata(
+      size: Size(width.toDouble(), height.toDouble()),
+      rotation: _inputImageRotation(uprightDegrees),
+      format: _isBgra ? InputImageFormat.bgra8888 : InputImageFormat.nv21,
+      bytesPerRow: bytesPerRow,
+    ),
+  );
 
   /// Decodes the buffer to RGB and rotates it upright.
   imglib.Image toImage() {
@@ -59,12 +61,12 @@ class CroppedFrame {
 }
 
 InputImageRotation _inputImageRotation(int degrees) => switch (degrees) {
-      0 => InputImageRotation.rotation0deg,
-      90 => InputImageRotation.rotation90deg,
-      180 => InputImageRotation.rotation180deg,
-      270 => InputImageRotation.rotation270deg,
-      _ => throw ArgumentError.value(degrees, 'degrees'),
-    };
+  0 => InputImageRotation.rotation0deg,
+  90 => InputImageRotation.rotation90deg,
+  180 => InputImageRotation.rotation180deg,
+  270 => InputImageRotation.rotation270deg,
+  _ => throw ArgumentError.value(degrees, 'degrees'),
+};
 
 /// Cuts [rect] out of a packed NV21 buffer of [srcWidth] × [srcHeight].
 ///
@@ -76,8 +78,14 @@ Uint8List cropNv21(
   Rectangle<int> rect,
 ) {
   assert(rect.left.isEven && rect.top.isEven, 'NV21 crop origin must be even');
-  assert(rect.width.isEven && rect.height.isEven, 'NV21 crop size must be even');
-  assert(rect.right <= srcWidth && rect.bottom <= srcHeight, 'crop outside frame');
+  assert(
+    rect.width.isEven && rect.height.isEven,
+    'NV21 crop size must be even',
+  );
+  assert(
+    rect.right <= srcWidth && rect.bottom <= srcHeight,
+    'crop outside frame',
+  );
   assert(src.length >= srcWidth * srcHeight * 3 ~/ 2, 'NV21 buffer too short');
 
   final w = rect.width;
@@ -160,7 +168,9 @@ extension ScanAreaCrop on AnalysisImage {
       InputAnalysisImageRotation.rotation180deg => 180,
       InputAnalysisImageRotation.rotation270deg => 270,
     };
-    return format == InputAnalysisImageFormat.bgra8888 ? (base + 90) % 360 : base;
+    return format == InputAnalysisImageFormat.bgra8888
+        ? (base + 90) % 360
+        : base;
   }
 
   /// Cuts the scan area (see [scanAreaFor]) out of this frame, or returns
