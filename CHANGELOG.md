@@ -1,4 +1,4 @@
-## 1.0.0 (unreleased)
+## 1.0.0
 
 * Added still-image scanning: `scanPassportFromGallery()` opens the system photo
   picker, `scanPassportImage(path)` reads an image already on disk, and
