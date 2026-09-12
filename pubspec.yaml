@@ -1,5 +1,5 @@
 name: passport_scanner
-description: "Scan any passport to extract its information"
+description: "Scans passports with the device camera or from a gallery photo and extracts the MRZ (name, document number, nationality, dates) on Android and iOS."
 version: 1.0.0
 homepage: https://github.com/alihusseinalissa/passport_scanner
 
